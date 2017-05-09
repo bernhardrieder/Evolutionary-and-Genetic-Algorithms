@@ -3,9 +3,10 @@
 
 class NQueensPuzzle
 {
+	//just a wrapper due to early function declarations
 	struct PuzzleResult
 	{
-		
+		std::vector<sf::Vector2i> Positions;
 	};
 public:
 	NQueensPuzzle();
@@ -21,13 +22,15 @@ private:
 	bool createAndSaveResultTextureOnFileSystem(const PuzzleResult& puzzleResult);
 	bool createResultRenderTexture();
 	void calculateResultTexturePixelWidthHeightAndDimension();
-	void drawGridInResultTexture();
-	void drawQueensInResultTexture(const PuzzleResult& puzzleResult);
+	void drawGridInResultTextureAndCreateQueenPosLUT();
+	bool drawQueensInResultTexture(const PuzzleResult& puzzleResult);
 	bool saveResultTextureOnFileSystem() const;
 	
 
 	sf::RenderTexture m_resultTexture;
 	sf::Vector2u m_textureDimension;
+	std::vector<int> m_queenMiddlePointPixelXCoordLUT;
+	std::vector<int> m_queenMiddlePointPixelYCoordLUT;
 	unsigned m_queensAmount;
 	unsigned m_pixelAmount;
 	const unsigned m_queensPixel = 20;

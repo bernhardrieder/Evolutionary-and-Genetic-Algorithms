@@ -1,6 +1,7 @@
 #include "NQueensPuzzle.h"
 #include <SFML/Graphics/VertexArray.hpp>
 #include <iostream>
+#include "Helper.h"
 
 
 NQueensPuzzle::NQueensPuzzle() : m_queensAmount(0), m_pixelAmount(0)
@@ -24,7 +25,7 @@ int NQueensPuzzle::Execute(int argc, char** argv)
 		std::cerr << "ERROR: Couldn't solve Puzzle! :(\n";
 		return 0;
 	}
-	std::cout << "INFO: Finished solving successfully!\n";
+	std::cout << "INFO: Solved successfully!\n";
 
 	if(!createAndSaveResultTextureOnFileSystem(result))
 	{
@@ -90,8 +91,13 @@ bool NQueensPuzzle::createAndSaveResultTextureOnFileSystem(const PuzzleResult& p
 
 	m_resultTexture.clear(sf::Color::White);
 
-	drawGridInResultTexture();
-	drawQueensInResultTexture(puzzleResult);
+	drawGridInResultTextureAndCreateQueenPosLUT();
+	
+	PuzzleResult result;
+	result.Positions.push_back(sf::Vector2i(5, 5));
+	//result.Positions.push_back(sf::Vector2i(m_queensAmount-1, m_queensAmount-1));
+	if (!drawQueensInResultTexture(result))
+		return false;
 
 	m_resultTexture.display();
 
@@ -116,8 +122,13 @@ void NQueensPuzzle::calculateResultTexturePixelWidthHeightAndDimension()
 	m_textureDimension = {m_pixelAmount, m_pixelAmount};
 }
 
-void NQueensPuzzle::drawGridInResultTexture()
+void NQueensPuzzle::drawGridInResultTextureAndCreateQueenPosLUT()
 {
+	int queenPixelHalf = m_queensPixel / 2;
+
+	m_queenMiddlePointPixelXCoordLUT.resize(m_queensAmount);
+	m_queenMiddlePointPixelYCoordLUT.resize(m_queensAmount);
+	
 	sf::VertexArray vertices(sf::PrimitiveType::Lines);
 	for (int x = 0; x < m_queensAmount; ++x)
 	{
@@ -126,6 +137,8 @@ void NQueensPuzzle::drawGridInResultTexture()
 		sf::Vertex v2(sf::Vector2f(xPos, m_pixelAmount), sf::Color::Black);
 		vertices.append(v1);
 		vertices.append(v2);
+
+		m_queenMiddlePointPixelXCoordLUT[x] = xPos + queenPixelHalf;
 	}
 	for (int y = 0; y < m_queensAmount; ++y)
 	{
@@ -134,12 +147,60 @@ void NQueensPuzzle::drawGridInResultTexture()
 		sf::Vertex v2(sf::Vector2f(m_pixelAmount, yPos), sf::Color::Black);
 		vertices.append(v1);
 		vertices.append(v2);
+
+		m_queenMiddlePointPixelYCoordLUT[y] = yPos + queenPixelHalf + 1;
 	}
 	m_resultTexture.draw(vertices);
 }
 
-void NQueensPuzzle::drawQueensInResultTexture(const PuzzleResult& puzzleResult)
+bool NQueensPuzzle::drawQueensInResultTexture(const PuzzleResult& puzzleResult)
 {
+	int queenPixelHalf = m_queensPixel / 2;
+	for(int i = 0; i < puzzleResult.Positions.size(); ++i)
+	{
+		auto& queenPos = puzzleResult.Positions[i];
+		if (queenPos.x >= m_queensAmount || queenPos.y >= m_queensAmount)
+		{
+			std::cerr << "ERROR: Queen position is out of texture range!";
+			return false;
+		}
+
+		sf::Vector2i queenMiddlePointPixelPos = { m_queenMiddlePointPixelXCoordLUT[queenPos.x], m_queenMiddlePointPixelYCoordLUT[queenPos.y] };
+
+		sf::Color queenColor = sf::Color::Green;
+		sf::VertexArray vertices(sf::PrimitiveType::Quads);
+		vertices.append({ sf::Vector2f(queenMiddlePointPixelPos.x - queenPixelHalf, queenMiddlePointPixelPos.y + queenPixelHalf), queenColor }); // lower left
+		vertices.append({ sf::Vector2f(queenMiddlePointPixelPos.x - queenPixelHalf, queenMiddlePointPixelPos.y - queenPixelHalf), queenColor }); // upper left
+		vertices.append({ sf::Vector2f(queenMiddlePointPixelPos.x + queenPixelHalf, queenMiddlePointPixelPos.y - queenPixelHalf), queenColor }); // upper right
+		vertices.append({ sf::Vector2f(queenMiddlePointPixelPos.x + queenPixelHalf, queenMiddlePointPixelPos.y + queenPixelHalf), queenColor }); // lower right
+		m_resultTexture.draw(vertices);
+
+
+		sf::VertexArray verticesLineVertical(sf::PrimitiveType::Lines);
+		verticesLineVertical.append({ sf::Vector2f(queenMiddlePointPixelPos.x, 0), queenColor });
+		verticesLineVertical.append({ sf::Vector2f(queenMiddlePointPixelPos.x, m_pixelAmount), queenColor }); 
+		m_resultTexture.draw(verticesLineVertical);
+
+		sf::VertexArray verticesLineHorizontal(sf::PrimitiveType::Lines);
+		verticesLineHorizontal.append({ sf::Vector2f(0, queenMiddlePointPixelPos.y), queenColor });
+		verticesLineHorizontal.append({ sf::Vector2f(m_pixelAmount, queenMiddlePointPixelPos.y), queenColor });
+		m_resultTexture.draw(verticesLineHorizontal);
+
+		int low = queenPos.x;
+		if (low > queenPos.y)
+			low = queenPos.y;
+		sf::Vector2i lowPos = { m_queenMiddlePointPixelXCoordLUT[queenPos.x-low], m_queenMiddlePointPixelYCoordLUT[queenPos.y-low] };
+
+		sf::Vector2i diagonalLeftUpVec = sf::Vector2i{ -1, -1 };
+		sf::VertexArray verticesDiagLeftUp(sf::PrimitiveType::Lines);
+		sf::Vector2f vec = sf::Vector2f(lowPos - queenMiddlePointPixelPos);
+		verticesDiagLeftUp.append({ vec, queenColor });
+		verticesDiagLeftUp.append({ sf::Vector2f(queenMiddlePointPixelPos.x + diagonalLeftUpVec.x * -m_pixelAmount, queenMiddlePointPixelPos.y + diagonalLeftUpVec.y * -m_pixelAmount), queenColor });
+		m_resultTexture.draw(verticesDiagLeftUp);
+
+
+	}
+	return true;
 }
 
 bool NQueensPuzzle::saveResultTextureOnFileSystem() const
