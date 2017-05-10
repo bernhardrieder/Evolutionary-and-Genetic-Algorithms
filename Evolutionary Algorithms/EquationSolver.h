@@ -17,18 +17,38 @@ struct Individual
 		Quality = other.Quality;
 		return *this;
 	}
-};
 
-class EquationSolver
+	void Reset()
+	{
+		for (int i = 0; i < 4; ++i)
+			Genes[i] = 0;
+		Usable = false;
+		Quality = -1;
+	}
+};
+namespace EquationSolverStrategy
 {
-	enum EquationSolverStrategy
+	enum Enum
 	{
 		None,
 		OnePlusOne,
 		muPlusLambda,
 		muCommaLambda,
-		muSlashRohSharpLambda
+		muSlashRohPlusLambda,
+		muSlashRohCommaLambda
 	};
+}
+namespace MuSlashRohSharpLambdaRecombination
+{
+	enum Enum
+	{
+		None,
+		Melting,
+		Combination
+	};
+}
+class EquationSolver
+{
 public:
 	EquationSolver();
 	~EquationSolver();
@@ -53,14 +73,16 @@ private:
 	void muPlusLambdaEvolutionStrategy();
 	bool foundSolution(const Individual* individualsArray, const size_t& amount, Individual& outSolution) const;
 	void muCommaLambdaEvolutionStrategy();
-	void muSlashRohSharpLambdaEvolutionStrategy();
+	void muSlashRohPlusLambdaEvolutionStrategy();
+	void muSlashRohSlashLambdaEvolutionStrategy();
 
-	EquationSolverStrategy m_strategy = None;
+	EquationSolverStrategy::Enum m_strategy = EquationSolverStrategy::None;
 	int m_individualRandomRange[2] = { 0,0 }; 
 	int m_mutationRandomRange[2] = { 0,0 };
 	int m_mu = 0;
 	int m_lambda = 0;
 	int m_roh = 0;
+	MuSlashRohSharpLambdaRecombination::Enum m_muSlashRohSharpLambdaRecombination = MuSlashRohSharpLambdaRecombination::None;
 
 	std::random_device m_randomDevice; 
 	std::mt19937_64 m_mersenneTwisterEngine;
@@ -69,16 +91,19 @@ private:
 
 	const struct CmdIdentifier
 	{
-		const char* strategy = "--strategy";
-		const char* onePlusOne = "(1+1)";
-		const char* muPlusLambda = "(m+l)";
-		const char* muCommaLambda = "(m,l)";
-		const char* muSlashRohSharpLambda = "(m/r#l)";
-		const char* individualRandomRange = "--i-range";
-		const char* mutationRandomRange = "--m-range";
-		const char* mu = "--mu";
-		const char* lambda = "--lambda";
-		const char* roh = "--roh";
+		const char* Strategy = "--strategy";
+		const char* OnePlusOne = "(1+1)";
+		const char* MuPlusLambda = "(m+l)";
+		const char* MuCommaLambda = "(m,l)";
+		const char* MuSlashRohPlusLambda = "(m/r+l)";
+		const char* MuSlashRohCommaLambda = "(m/r,l)";
+		const char* IndividualRandomRange = "--i-range";
+		const char* MutationRandomRange = "--m-range";
+		const char* Mu = "--mu";
+		const char* Lambda = "--lambda";
+		const char* Roh = "--roh";
+		const char* Melting = "--melting";
+		const char* Combination = "--combination";
 	} CMD_IDs;
 };
 

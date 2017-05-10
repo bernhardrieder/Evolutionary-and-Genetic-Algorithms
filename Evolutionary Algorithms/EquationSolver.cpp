@@ -25,10 +25,11 @@ int EquationSolver::Execute(int argc, char** argv)
 	switch (m_strategy)
 	{
 	default:
-	case OnePlusOne: onePlusOneEvolutionStrategy();	break;
-	case muPlusLambda: muPlusLambdaEvolutionStrategy(); break;
-	case muCommaLambda: muCommaLambdaEvolutionStrategy(); break;
-	case muSlashRohSharpLambda: muSlashRohSharpLambdaEvolutionStrategy(); break;
+	case EquationSolverStrategy::OnePlusOne: onePlusOneEvolutionStrategy();	break;
+	case EquationSolverStrategy::muPlusLambda: muPlusLambdaEvolutionStrategy(); break;
+	case EquationSolverStrategy::muCommaLambda: muCommaLambdaEvolutionStrategy(); break;
+	case EquationSolverStrategy::muSlashRohPlusLambda: muSlashRohPlusLambdaEvolutionStrategy(); break;
+	case EquationSolverStrategy::muSlashRohCommaLambda: muSlashRohSlashLambdaEvolutionStrategy(); break;
 	}
 
 	getchar();
@@ -53,41 +54,49 @@ bool EquationSolver::parseCommandLine(int argc, char** argv)
 			return false;
 		}
 
-		if (arg == CMD_IDs.strategy && i + 1 < argc)
+		if (arg == CMD_IDs.Strategy && i + 1 < argc)
 		{
 			std::string strategy = argv[++i];
-			if (strategy == CMD_IDs.onePlusOne)
-				m_strategy = OnePlusOne;
-			else if (strategy == CMD_IDs.muPlusLambda)
-				m_strategy = muPlusLambda;
-			else if (strategy == CMD_IDs.muCommaLambda)
-				m_strategy = muCommaLambda;
-			else if (strategy == CMD_IDs.muSlashRohSharpLambda)
-				m_strategy = muSlashRohSharpLambda;
+			if (strategy == CMD_IDs.OnePlusOne)
+				m_strategy = EquationSolverStrategy::OnePlusOne;
+			else if (strategy == CMD_IDs.MuPlusLambda)
+				m_strategy = EquationSolverStrategy::muPlusLambda;
+			else if (strategy == CMD_IDs.MuCommaLambda)
+				m_strategy = EquationSolverStrategy::muCommaLambda;
+			else if (strategy == CMD_IDs.MuSlashRohPlusLambda)
+				m_strategy = EquationSolverStrategy::muSlashRohPlusLambda;
+			else if (strategy == CMD_IDs.MuSlashRohCommaLambda)
+				m_strategy = EquationSolverStrategy::muSlashRohCommaLambda;
 		}
 
-		if (arg == CMD_IDs.individualRandomRange && i + 2 < argc)
+		if (arg == CMD_IDs.IndividualRandomRange && i + 2 < argc)
 		{
 			std::string min = argv[++i], max = argv[++i];
 			m_individualRandomRange[0] = std::stoi(min);
 			m_individualRandomRange[1] = std::stoi(max);
 		}
 
-		if (arg == CMD_IDs.mutationRandomRange && i + 2 < argc)
+		if (arg == CMD_IDs.MutationRandomRange && i + 2 < argc)
 		{
 			std::string min = argv[++i], max = argv[++i];
 			m_mutationRandomRange[0] = std::stoi(min);
 			m_mutationRandomRange[1] = std::stoi(max);
 		}
 
-		if (arg == CMD_IDs.mu && i + 1 < argc)
+		if (arg == CMD_IDs.Mu && i + 1 < argc)
 			m_mu = std::stoi(argv[++i]);
 
-		if (arg == CMD_IDs.lambda && i + 1 < argc)
+		if (arg == CMD_IDs.Lambda && i + 1 < argc)
 			m_lambda = std::stoi(argv[++i]);
 
-		if (arg == CMD_IDs.roh && i + 1 < argc)
+		if (arg == CMD_IDs.Roh && i + 1 < argc)
 			m_roh = std::stoi(argv[++i]);
+
+		if (arg == CMD_IDs.Combination)
+			m_muSlashRohSharpLambdaRecombination = MuSlashRohSharpLambdaRecombination::Combination;
+
+		if (arg == CMD_IDs.Melting)
+			m_muSlashRohSharpLambdaRecombination = MuSlashRohSharpLambdaRecombination::Melting;
 	}
 
 	if (hasCommandLineInputError())
@@ -101,17 +110,17 @@ bool EquationSolver::parseCommandLine(int argc, char** argv)
 
 bool EquationSolver::hasCommandLineInputError()
 {
-	if (m_strategy == None)
+	if (m_strategy == EquationSolverStrategy::None)
 		return true;
 	if (m_individualRandomRange[0] == 0 && m_individualRandomRange[1] == 0)
 		return true;
 	if (m_mutationRandomRange[0] == 0 && m_mutationRandomRange[1] == 0)
 		return true;
-	if((m_strategy == muCommaLambda || m_strategy == muPlusLambda || m_strategy == muSlashRohSharpLambda) 
+	if((m_strategy == EquationSolverStrategy::muCommaLambda || m_strategy == EquationSolverStrategy::muPlusLambda || m_strategy == EquationSolverStrategy::muSlashRohPlusLambda || m_strategy == EquationSolverStrategy::muSlashRohCommaLambda)
 		&& (m_mu <= 0 || m_lambda <= 0))
 			return true;
-	if (m_strategy == muSlashRohSharpLambda 
-		&& m_roh == 0)
+	if ((m_strategy == EquationSolverStrategy::muSlashRohPlusLambda || m_strategy == EquationSolverStrategy::muSlashRohCommaLambda)
+		&& (m_roh <= 0 || m_muSlashRohSharpLambdaRecombination == MuSlashRohSharpLambdaRecombination::None))
 		return true;
 	return false;
 }
@@ -122,25 +131,27 @@ void EquationSolver::showUsage(char* appExecutionPath) const
 		<< "Usage: " << appExecutionPath << " <option(s)>\n\n"
 		<< "Options:\n"
 		<< "\t-h,--help\tShow this help message.\n"
-		<< "\t" << CMD_IDs.strategy << " <ES>\tchoose a Evolution Strategy listed below!\n"
+		<< "\t" << CMD_IDs.Strategy << " <ES>\tchoose a Evolution Strategy listed below!\n"
 
 		<< "\nEvolution Strategies:\n"
-		<< "\t" << CMD_IDs.onePlusOne << "\tExecutes solver with (1+1) Evolution Strategy with given random parameter.\n"
-		<< "\t" << CMD_IDs.muPlusLambda << "\tExecutes solver with (mu+lambda) Evolution Strategy with given random parameter.\n"
-		<< "\t" << CMD_IDs.muCommaLambda << "\tExecutes solver with (mu,lambda) Evolution Strategy with given random parameter.\n"
-		<< "\t" << CMD_IDs.muSlashRohSharpLambda << "\tExecutes solver with (mu/roh#lambda) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.OnePlusOne << "\tExecutes solver with (1+1) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.MuPlusLambda << "\tExecutes solver with (mu+lambda) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.MuCommaLambda << "\tExecutes solver with (mu,lambda) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.MuSlashRohCommaLambda << "\tExecutes solver with (mu/roh#lambda) Evolution Strategy with given random parameter.\n"
 
 		<< "\nGeneral Strategy Parameters:\n"
-		<< "\t" << CMD_IDs.individualRandomRange << " <MIN> <MAX>\tIndividual self-replication random range.\n"
-		<< "\t" << CMD_IDs.mutationRandomRange << " <MIN> <MAX>\tMutation random range.\n"
+		<< "\t" << CMD_IDs.IndividualRandomRange << " <MIN> <MAX>\tIndividual self-replication random range.\n"
+		<< "\t" << CMD_IDs.MutationRandomRange << " <MIN> <MAX>\tMutation random range.\n"
 
-		<< "\n" << CMD_IDs.muPlusLambda << " & " << CMD_IDs.muCommaLambda << " specific Parameter:\n"
-		<< "\t" << CMD_IDs.mu << " <NUM>\t\tDefines amount of parents. Needs to be a positive number!\n"
-		<< "\t" << CMD_IDs.lambda << " <NUM>\t\tDefines amount of children. Needs to be a positive number!\n"
+		<< "\n" << CMD_IDs.MuPlusLambda << " & " << CMD_IDs.MuCommaLambda << " specific Parameter:\n"
+		<< "\t" << CMD_IDs.Mu << " <NUM>\t\tDefines amount of parents. Needs to be a positive number!\n"
+		<< "\t" << CMD_IDs.Lambda << " <NUM>\t\tDefines amount of children. Needs to be a positive number!\n"
 
-		<< "\n" << CMD_IDs.muSlashRohSharpLambda << " specific Parameter:\n"
-		<< "\t" << CMD_IDs.mu << ", " << CMD_IDs.lambda << "\t==> same as above!\n"
-		<< "\t" << CMD_IDs.roh << " <NUM>\tNO IDEA!" //TODO
+		<< "\n" << CMD_IDs.MuSlashRohCommaLambda << " specific Parameter:\n"
+		<< "\t" << CMD_IDs.Mu << ", " << CMD_IDs.Lambda << "\t==> same as above!\n"
+		<< "\t" << CMD_IDs.Roh << " <NUM>\tNumber of parent individuals.\n"
+		<< "\t" << CMD_IDs.Melting << "\tRecombination function 'Melting' -> average of parent genes.\n"
+		<< "\t" << CMD_IDs.Combination << "\tRecombination function 'Combination' -> random gene selection."
 		<< std::endl;
 }
 
@@ -479,6 +490,109 @@ void EquationSolver::muCommaLambdaEvolutionStrategy()
 
 }
 
-void EquationSolver::muSlashRohSharpLambdaEvolutionStrategy()
+void EquationSolver::muSlashRohPlusLambdaEvolutionStrategy()
+{
+	Individual solution;
+	const size_t sizeOfGenes = _countof(solution.Genes);
+
+	std::vector<Individual> parents, children, individuals;
+	parents.resize(m_mu);
+	children.resize(m_lambda);
+	individuals.resize(m_mu + m_lambda);
+
+	std::uniform_int_distribution<> randomParentDistribution(0, m_mu - 1);
+	std::uniform_int_distribution<> randomGeneDistribution(0, m_roh - 1);
+
+	int iterationCounter = 0;
+	int maxIterations = 500000;
+
+	std::vector<int> qualityOverIterations;
+	qualityOverIterations.reserve(maxIterations);
+
+	/* -------------------------------------- RANDOM START PARENTS -------------------------------------- */
+	for (int i = 0; i < parents.size(); ++i)
+		for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+			parents[i].Genes[geneIndex] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
+
+	/* -------------------------------------- START EVOLUTION -------------------------------------- */
+	for (; iterationCounter <= maxIterations; ++iterationCounter)
+	{
+		//add all new parents to a summary array
+		for (int i = 0; i < parents.size(); ++i)
+			individuals[i] = parents[i];
+
+		for (int i = 0; i < children.size(); ++i)
+		{
+			/* -------------------------------------- RECOMBINATION -------------------------------------- */
+			if (m_muSlashRohSharpLambdaRecombination == MuSlashRohSharpLambdaRecombination::Combination)
+			{
+				std::vector<Individual*> randomParents;
+				randomParents.reserve(m_roh);
+				for (int p = 0; p < m_roh; ++p)
+				{
+					randomParents.push_back(&parents[randomParentDistribution(m_mersenneTwisterEngine)]);
+				}
+				for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+				{
+					children[i].Genes[geneIndex] == randomParents[randomGeneDistribution(m_mersenneTwisterEngine)]->Genes[i];
+				}
+			}
+			else if (m_muSlashRohSharpLambdaRecombination == MuSlashRohSharpLambdaRecombination::Melting)
+			{
+				children[i].Reset();
+				for (int p = 0; p < m_roh; ++p)
+				{
+					for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+					{
+						children[i].Genes[geneIndex] += parents[randomParentDistribution(m_mersenneTwisterEngine)].Genes[i];
+					}
+				}
+				for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+					children[i].Genes[geneIndex] /= m_roh;
+			}
+
+			/* -------------------------------------- RANDOM MUTATION -------------------------------------- */
+			for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+				children[i].Genes[geneIndex] += m_randomMutationDistribution(m_mersenneTwisterEngine);
+
+			//add to a summary array
+			individuals[parents.size() + i] = children[i];
+		}
+
+		/* -------------------------------------- SELECTION -------------------------------------- */
+		//which of the individuals fulfill the condition 2?
+		for (int i = 0; i < individuals.size(); ++i)
+			individuals[i].Usable = isEvolutionStrategyCondition2Fulfilled(individuals[i]);
+
+		//is one of the individuals the solution?
+		if (foundSolution(&individuals[0], individuals.size(), solution))
+			break;
+
+		//determine quality
+		for (int i = 0; i < individuals.size(); ++i)
+			individuals[i].Quality = individuals[i].Usable ? getDiffenceOfEvolutionStrategyEquation(individuals[i].Genes[0], individuals[i].Genes[1], individuals[i].Genes[2], individuals[i].Genes[3]) : std::numeric_limits<int>::max();
+
+		std::random_shuffle(individuals.begin(), individuals.end());
+		std::sort(individuals.begin(), individuals.end(), [](const Individual& lhs, const Individual& rhs) { return lhs.Quality < rhs.Quality; });
+
+		//save best quality level
+		qualityOverIterations.push_back(individuals[0].Quality);
+
+		//choose mu best individuals from all individuals
+		for (int i = 0; i < parents.size(); ++i)
+			parents[i] = individuals[i];
+	}
+
+	qualityOverIterations.push_back(0);
+	qualityOverIterations.shrink_to_fit();
+
+	if (iterationCounter < maxIterations)
+		printSolution(solution, iterationCounter, 0);
+	else
+		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
+	saveToFile(qualityOverIterations, "mu_p+lambda.csv");
+}
+
+void EquationSolver::muSlashRohSlashLambdaEvolutionStrategy()
 {
 }
