@@ -36,56 +36,60 @@ int EquationSolver::Execute(int argc, char** argv)
 
 bool EquationSolver::parseCommandLine(int argc, char** argv)
 {
-	const unsigned requiredArgv = 7;
+	const unsigned requiredArgv = 8; //at least for (1+1)
 	if (argc != requiredArgv + 1)
 	{
 		showUsage(argv[0]);
 		return false;
 	}
 
-	bool error = false;
 	for (int i = 1; i < argc; ++i)
 	{
 		std::string arg = argv[i];
-		if ((arg == "-h") || (arg == "--help"))
+		if (arg == "-h" || arg == "--help")
 		{
 			showUsage(argv[0]);
-			getchar();
 			return false;
 		}
-		if (i + 6 < argc)
-		{
-			if (arg == "-(1+1)")
-				m_strategy = OnePlusOne;
-			else if (arg == "-(m+l)")
-				m_strategy = muPlusLambda;
-			else if (arg == "-(m,l)")
-				m_strategy = muCommaLambda;
-			else if (arg == "-(m/r#l)")
-				m_strategy = muSlashRohSharpLambda;
 
-			for (int x = 0; x < 2; ++x)
-			{
-				std::string identifier = argv[++i];
-				std::string min = argv[++i], max = argv[++i];
-				if (identifier == "-ir")
-				{
-					m_individualRandomRange[0] = std::stoi(min);
-					m_individualRandomRange[1] = std::stoi(max);
-				}
-				else if (identifier == "-mr")
-				{
-					m_mutationRandomRange[0] = std::stoi(min);
-					m_mutationRandomRange[1] = std::stoi(max);
-				}
-				else
-					error = true;
-			}
+		if (arg == CMD_IDs.strategy && i + 1 < argc)
+		{
+			std::string strategy = argv[++i];
+			if (strategy == CMD_IDs.onePlusOne)
+				m_strategy = OnePlusOne;
+			else if (strategy == CMD_IDs.muPlusLambda)
+				m_strategy = muPlusLambda;
+			else if (strategy == CMD_IDs.muCommaLambda)
+				m_strategy = muCommaLambda;
+			else if (strategy == CMD_IDs.muSlashRohSharpLambda)
+				m_strategy = muSlashRohSharpLambda;
 		}
-		else
-			error = true;
+
+		if (arg == CMD_IDs.individualRandomRange && i + 2 < argc)
+		{
+			std::string min = argv[++i], max = argv[++i];
+			m_individualRandomRange[0] = std::stoi(min);
+			m_individualRandomRange[1] = std::stoi(max);
+		}
+
+		if (arg == CMD_IDs.mutationRandomRange && i + 2 < argc)
+		{
+			std::string min = argv[++i], max = argv[++i];
+			m_mutationRandomRange[0] = std::stoi(min);
+			m_mutationRandomRange[1] = std::stoi(max);
+		}
+
+		if (arg == CMD_IDs.mu && i + 1 < argc)
+			m_mu = std::stoi(argv[++i]);
+
+		if (arg == CMD_IDs.lambda && i + 1 < argc)
+			m_lambda = std::stoi(argv[++i]);
+
+		if (arg == CMD_IDs.roh && i + 1 < argc)
+			m_roh = std::stoi(argv[++i]);
 	}
-	if (error || m_strategy == None)
+
+	if (hasCommandLineInputError())
 	{
 		std::cerr << "ERROR: Input Error!\n";
 		return false;
@@ -94,17 +98,48 @@ bool EquationSolver::parseCommandLine(int argc, char** argv)
 	return true;
 }
 
-void EquationSolver::showUsage(char* appExecutionPath)
+bool EquationSolver::hasCommandLineInputError()
 {
-	std::cerr << "Usage: " << appExecutionPath << " <option(s)>\n\n"
+	if (m_strategy == None)
+		return true;
+	if (m_individualRandomRange[0] == 0 && m_individualRandomRange[1] == 0)
+		return true;
+	if (m_mutationRandomRange[0] == 0 && m_mutationRandomRange[1] == 0)
+		return true;
+	if((m_strategy == muCommaLambda || m_strategy == muPlusLambda || m_strategy == muSlashRohSharpLambda) 
+		&& (m_mu == 0 || m_lambda == 0))
+			return true;
+	if (m_strategy == muSlashRohSharpLambda 
+		&& m_roh == 0)
+		return true;
+	return false;
+}
+
+void EquationSolver::showUsage(char* appExecutionPath) const
+{
+	std::cout
+		<< "Usage: " << appExecutionPath << " <option(s)>\n\n"
 		<< "Options:\n"
 		<< "\t-h,--help\tShow this help message.\n"
-		<< "\t-(1+1)\t\tExecutes solver with (1+1) Evolution Strategy with given random parameter.\n"
-		<< "\t-(m+l)\t\tExecutes solver with (mu+lambda) Evolution Strategy with given random parameter.\n"
-		<< "\t-(m,l)\t\tExecutes solver with (mu,lambda) Evolution Strategy with given random parameter.\n"
-		<< "\t-(m/r#l)\tExecutes solver with (mu/roh#lambda) Evolution Strategy with given random parameter.\n"
-		<< "\t-ir <MIN> <MAX>\tIndividual self-replication random range.\n"
-		<< "\t-mr <MIN> <MAX>\tMutation random range.\n"
+		<< "\t" << CMD_IDs.strategy << " <ES>\tchoose a Evolution Strategy listed below!\n"
+
+		<< "\nEvolution Strategies:\n"
+		<< "\t" << CMD_IDs.onePlusOne << "\tExecutes solver with (1+1) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.muPlusLambda << "\tExecutes solver with (mu+lambda) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.muCommaLambda << "\tExecutes solver with (mu,lambda) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.muSlashRohSharpLambda << "\tExecutes solver with (mu/roh#lambda) Evolution Strategy with given random parameter.\n"
+
+		<< "\nGeneral Strategy Parameters:\n"
+		<< "\t" << CMD_IDs.individualRandomRange << " <MIN> <MAX>\tIndividual self-replication random range.\n"
+		<< "\t" << CMD_IDs.mutationRandomRange << " <MIN> <MAX>\tMutation random range.\n"
+
+		<< "\n" << CMD_IDs.muPlusLambda << " & " << CMD_IDs.muCommaLambda << " specific Parameter:\n"
+		<< "\t" << CMD_IDs.mu << " <NUM>\t\tDefines amount of parents. Needs to be a positive number!\n"
+		<< "\t" << CMD_IDs.lambda << " <NUM>\t\tDefines amount of children. Needs to be a positive number!\n"
+
+		<< "\n" << CMD_IDs.muSlashRohSharpLambda << " specific Parameter:\n"
+		<< "\t" << CMD_IDs.mu << ", " << CMD_IDs.lambda << "\t==> same as above!\n"
+		<< "\t" << CMD_IDs.roh << " <NUM>\tNO IDEA!" //TODO
 		<< std::endl;
 }
 

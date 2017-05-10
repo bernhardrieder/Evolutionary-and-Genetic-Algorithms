@@ -33,7 +33,8 @@ public:
 
 private:
 	bool parseCommandLine(int argc, char** argv);
-	static void showUsage(char* appExecutionPath);
+	bool hasCommandLineInputError();
+	void showUsage(char* appExecutionPath) const;
 
 	void initializeRandomGenerators();
 
@@ -46,13 +47,30 @@ private:
 
 	void onePlusOneEvolutionStrategy();
 
-	EquationSolverStrategy m_strategy;
-	int m_individualRandomRange[2]; 
-	int m_mutationRandomRange[2];
+	EquationSolverStrategy m_strategy = None;
+	int m_individualRandomRange[2] = { 0,0 }; 
+	int m_mutationRandomRange[2] = { 0,0 };
+	int m_mu = 0;
+	int m_lambda = 0;
+	int m_roh = 0;
 
 	std::random_device m_randomDevice; 
 	std::mt19937_64 m_mersenneTwisterEngine;
 	std::uniform_int_distribution<> m_randomIndividualDistribution;
 	std::uniform_int_distribution<> m_randomMutationDistribution;
+
+	const struct CmdIdentifier
+	{
+		const char* strategy = "--strategy";
+		const char* onePlusOne = "(1+1)";
+		const char* muPlusLambda = "(m+l)";
+		const char* muCommaLambda = "(m,l)";
+		const char* muSlashRohSharpLambda = "(m/r#l)";
+		const char* individualRandomRange = "--i-range";
+		const char* mutationRandomRange = "--m-range";
+		const char* mu = "--mu";
+		const char* lambda = "--lambda";
+		const char* roh = "--roh";
+	} CMD_IDs;
 };
 
