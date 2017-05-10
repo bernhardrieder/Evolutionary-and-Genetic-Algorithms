@@ -344,7 +344,6 @@ void EquationSolver::muPlusLambdaEvolutionStrategy()
 		for (int i = 0; i < individuals.size(); ++i)
 			individuals[i].Quality = individuals[i].Usable ? getDiffenceOfEvolutionStrategyEquation(individuals[i].Genes[0], individuals[i].Genes[1], individuals[i].Genes[2], individuals[i].Genes[3]) : std::numeric_limits<int>::max();
 
-		//TODO: check if sorted as intended!
 		std::random_shuffle(individuals.begin(), individuals.end());
 		std::sort(individuals.begin(), individuals.end(), [](const Individual& lhs, const Individual& rhs) { return lhs.Quality < rhs.Quality; });
 
@@ -379,8 +378,105 @@ bool EquationSolver::foundSolution(const Individual* individualsArray, const siz
 	return false;
 }
 
+/*
+ * Aufgrund der Tendenz von (μ + λ) – Evolutionsstrategien zu lokalen Optima, führte Hans-Paul Schwefel die Komma-Notation ein. Bei diesem 
+ * Verfahren werden nur noch die λ Nachkommen zur Auswahl der μ Eltern der Folgegeneration herangezogen. Die Eltern der Vorgängergeneration 
+ * werden grundsätzlich „vergessen”, wodurch die Evolution zumindest naturgetreuer nachgeahmt wird, da es im Gegensatz zur (μ + λ) – 
+ * Evolutionsstrategie keine potenziell unsterblichen Individuen mehr gibt. Individuen leben somit nur noch genau eine Generation.
+ * 
+ * Die Gefahr der vorzeitigen Konvergenz zu einem lokalen Optimum führt oft dazu, dass das globale Optimum nicht gefunden wird, da durch 
+ * Mutation keine weitere Verbesserung erreicht werden kann. Zudem ändert sich der Verlauf der Qualitätsfunktion. Mit der Qualitätsfunktion 
+ * wird das Verhalten der Individuen einer Population über die Generationsschritte hinweg beschrieben. So kann man die Güte des besten 
+ * Individuums über die Generationsschritte hinweg beobachten und als Qualitätsmaß auffassen. Während sich der Verlauf der Qualitätsfunktion 
+ * bei der (μ + λ) – Evolutionsstrategie monoton (steigend oder fallend, je nach Optimierungsziel) verhält, verhält sich die Qualitätsfunktion 
+ * der (μ , λ) – Evolutionsstrategie unter Umständen stark nach oben und nach unten schwankend. Dies liegt daran, dass die Individuen der 
+ * Eltergeneration durchweg eine bessere Qualität haben können, als die der Nachkommen. Da die Eltern stets „vergessen” werden kann es so 
+ * vorkommen, dass die Individuen der Folgegeneration durchweg schlechter sein können, als die der Vorgängergeneration, was zu Rückschritten 
+ * im Optimierungsprozess führen kann.
+ * 
+ * Wie stark diese Schwankungen der Qualitätsfunktion ausfallen, hängt in der Regel von der Stärke der Mutation ab. Bei einer geringfügigen 
+ * Mutation treten im Allgemeinen auch geringfügige Änderungen der Qualitätsfunktion auf. Geringfügige Mutationen führen deshalb auch bei 
+ * Evolutionsstrategien zu besseren Ergebnissen.
+ * 
+ * Die (μ + λ) –  und die (μ , λ) – Evolutionsstrategien werden, für den Fall, dass die Selektionsstrategie keine Rolle spielt, zur (μ # λ) – 
+ * Evolutionsstrategie zusammengefasst, wobei '#' für '+' oder ',' steht.
+ */
 void EquationSolver::muCommaLambdaEvolutionStrategy()
 {
+	Individual solution;
+	size_t sizeOfGenes = _countof(solution.Genes);
+
+	std::vector<Individual> parents, children, individuals;
+	parents.resize(m_mu);
+	children.resize(m_lambda);
+	individuals.resize(m_mu + m_lambda);
+
+	std::uniform_int_distribution<> randomParentDistribution(0, m_mu - 1);
+
+	int iterationCounter = 0;
+	int maxIterations = 500000;
+
+	std::vector<int> qualityOverIterations;
+	qualityOverIterations.reserve(maxIterations);
+
+	/* -------------------------------------- RANDOM START PARENTS -------------------------------------- */
+	for (int i = 0; i < parents.size(); ++i)
+		for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+			parents[i].Genes[geneIndex] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
+
+	/* -------------------------------------- START EVOLUTION -------------------------------------- */
+	for (; iterationCounter <= maxIterations; ++iterationCounter)
+	{
+		//add all new parents to a summary array
+		for (int i = 0; i < parents.size(); ++i)
+			individuals[i] = parents[i];
+
+		for (int i = 0; i < children.size(); ++i)
+		{
+			/* -------------------------------------- SELF-REPLICATION -------------------------------------- */
+			children[i] = parents[randomParentDistribution(m_mersenneTwisterEngine)];
+
+			/* -------------------------------------- RANDOM MUTATION -------------------------------------- */
+			for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+				children[i].Genes[geneIndex] += m_randomMutationDistribution(m_mersenneTwisterEngine);
+
+			//add to a summary array
+			individuals[parents.size() + i] = children[i];
+		}
+
+		/* -------------------------------------- SELECTION -------------------------------------- */
+		//which of the individuals fulfill the condition 2?
+		for (int i = 0; i < individuals.size(); ++i)
+			individuals[i].Usable = isEvolutionStrategyCondition2Fulfilled(individuals[i]);
+
+		//is one of the individuals the solution?
+		if (foundSolution(&individuals[0], individuals.size(), solution))
+			break;
+
+		//determine quality
+		for (int i = 0; i < children.size(); ++i)
+			children[i].Quality = individuals[parents.size() + i].Usable ? getDiffenceOfEvolutionStrategyEquation(children[i].Genes[0], children[i].Genes[1], children[i].Genes[2], children[i].Genes[3]) : std::numeric_limits<int>::max();
+		
+		std::random_shuffle(children.begin(), children.end());
+		std::sort(children.begin(), children.end(), [](const Individual& lhs, const Individual& rhs) { return lhs.Quality < rhs.Quality; });
+
+		//save best quality level
+		qualityOverIterations.push_back(children[0].Quality);
+
+		//choose mu best individuals from all individuals
+		for (int i = 0; i < parents.size(); ++i)
+			parents[i] = children[i % children.size()];
+	}
+
+	qualityOverIterations.push_back(0);
+	qualityOverIterations.shrink_to_fit();
+
+	if (iterationCounter < maxIterations)
+		printSolution(solution, iterationCounter, 0);
+	else
+		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
+	saveToFile(qualityOverIterations, "mu,lambda.csv");
+
 }
 
 void EquationSolver::muSlashRohSharpLambdaEvolutionStrategy()
