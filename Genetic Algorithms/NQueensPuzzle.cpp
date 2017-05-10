@@ -1,8 +1,6 @@
 #include "NQueensPuzzle.h"
 #include <SFML/Graphics/VertexArray.hpp>
 #include <iostream>
-#include "Helper.h"
-
 
 NQueensPuzzle::NQueensPuzzle() : m_queensAmount(0), m_pixelAmount(0)
 {
@@ -33,10 +31,6 @@ int NQueensPuzzle::Execute(int argc, char** argv)
 		return 0;
 	}
 
-#if _DEBUG
-	getchar();
-#endif
-	
 	return 1;
 }
 
@@ -93,10 +87,7 @@ bool NQueensPuzzle::createAndSaveResultTextureOnFileSystem(const PuzzleResult& p
 
 	drawGridInResultTextureAndCreateQueenPosLUT();
 	
-	PuzzleResult result;
-	result.Positions.push_back(sf::Vector2i(5, 5));
-	//result.Positions.push_back(sf::Vector2i(m_queensAmount-1, m_queensAmount-1));
-	if (!drawQueensInResultTexture(result))
+	if (!drawQueensInResultTexture(puzzleResult))
 		return false;
 
 	m_resultTexture.display();
@@ -167,38 +158,90 @@ bool NQueensPuzzle::drawQueensInResultTexture(const PuzzleResult& puzzleResult)
 
 		sf::Vector2i queenMiddlePointPixelPos = { m_queenMiddlePointPixelXCoordLUT[queenPos.x], m_queenMiddlePointPixelYCoordLUT[queenPos.y] };
 
-		sf::Color queenColor = sf::Color::Green;
-		sf::VertexArray vertices(sf::PrimitiveType::Quads);
-		vertices.append({ sf::Vector2f(queenMiddlePointPixelPos.x - queenPixelHalf, queenMiddlePointPixelPos.y + queenPixelHalf), queenColor }); // lower left
-		vertices.append({ sf::Vector2f(queenMiddlePointPixelPos.x - queenPixelHalf, queenMiddlePointPixelPos.y - queenPixelHalf), queenColor }); // upper left
-		vertices.append({ sf::Vector2f(queenMiddlePointPixelPos.x + queenPixelHalf, queenMiddlePointPixelPos.y - queenPixelHalf), queenColor }); // upper right
-		vertices.append({ sf::Vector2f(queenMiddlePointPixelPos.x + queenPixelHalf, queenMiddlePointPixelPos.y + queenPixelHalf), queenColor }); // lower right
-		m_resultTexture.draw(vertices);
+		sf::Color queenColor = sf::Color::White;
+		//AVOID VERY BRIGHT OR VERY DARK COLORS!!
+		while(queenColor.r < 20 || queenColor.r > 220 || queenColor.g < 20 || queenColor.g > 220 || queenColor.b < 20 || queenColor.b > 220)
+			queenColor = sf::Color(rand() % 255, rand() % 255, rand() % 255);
 
+		/* -------------------------------- QUEEN LINE -------------------------------- */
+		{
+			sf::VertexArray vertices(sf::PrimitiveType::Quads, 4);
+			vertices[0] = { sf::Vector2f(queenMiddlePointPixelPos.x - queenPixelHalf, queenMiddlePointPixelPos.y + queenPixelHalf), queenColor }; // lower left
+			vertices[1] = { sf::Vector2f(queenMiddlePointPixelPos.x - queenPixelHalf, queenMiddlePointPixelPos.y - queenPixelHalf), queenColor }; // upper left
+			vertices[2] = { sf::Vector2f(queenMiddlePointPixelPos.x + queenPixelHalf, queenMiddlePointPixelPos.y - queenPixelHalf), queenColor }; // upper right
+			vertices[3] = { sf::Vector2f(queenMiddlePointPixelPos.x + queenPixelHalf, queenMiddlePointPixelPos.y + queenPixelHalf), queenColor }; // lower right
+			m_resultTexture.draw(vertices);
+		}
 
-		sf::VertexArray verticesLineVertical(sf::PrimitiveType::Lines);
-		verticesLineVertical.append({ sf::Vector2f(queenMiddlePointPixelPos.x, 0), queenColor });
-		verticesLineVertical.append({ sf::Vector2f(queenMiddlePointPixelPos.x, m_pixelAmount), queenColor }); 
-		m_resultTexture.draw(verticesLineVertical);
+		/* -------------------------------- VERTICAL LINE -------------------------------- */
+		{
+			sf::VertexArray vertices(sf::PrimitiveType::Lines, 2);
+			vertices[0] = { sf::Vector2f(queenMiddlePointPixelPos.x, 0), queenColor };
+			vertices[1] = { sf::Vector2f(queenMiddlePointPixelPos.x, m_pixelAmount), queenColor };
+			m_resultTexture.draw(vertices);
+		}
 
-		sf::VertexArray verticesLineHorizontal(sf::PrimitiveType::Lines);
-		verticesLineHorizontal.append({ sf::Vector2f(0, queenMiddlePointPixelPos.y), queenColor });
-		verticesLineHorizontal.append({ sf::Vector2f(m_pixelAmount, queenMiddlePointPixelPos.y), queenColor });
-		m_resultTexture.draw(verticesLineHorizontal);
+		/* -------------------------------- HORIZONTAL LINE -------------------------------- */
+		{
+			sf::VertexArray vertices(sf::PrimitiveType::Lines, 2);
+			vertices[0] = { sf::Vector2f(0, queenMiddlePointPixelPos.y), queenColor };
+			vertices[1] = { sf::Vector2f(m_pixelAmount, queenMiddlePointPixelPos.y), queenColor };
+			m_resultTexture.draw(vertices);
+		}
 
-		int low = queenPos.x;
-		if (low > queenPos.y)
-			low = queenPos.y;
-		sf::Vector2i lowPos = { m_queenMiddlePointPixelXCoordLUT[queenPos.x-low], m_queenMiddlePointPixelYCoordLUT[queenPos.y-low] };
+		/* -------------------------------- DIAGONAL LEFT UP LINE -------------------------------- */
+		{
+			//quick and dirty solution
+			sf::Vector2i upperLeft = queenPos;
+			for (int x = 0; x < m_queensAmount; ++x)
+			{
+				if (upperLeft.x <= 0 || upperLeft.y <= 0)
+					break;
+				--upperLeft.x;
+				--upperLeft.y;
+			}
 
-		sf::Vector2i diagonalLeftUpVec = sf::Vector2i{ -1, -1 };
-		sf::VertexArray verticesDiagLeftUp(sf::PrimitiveType::Lines);
-		sf::Vector2f vec = sf::Vector2f(lowPos - queenMiddlePointPixelPos);
-		verticesDiagLeftUp.append({ vec, queenColor });
-		verticesDiagLeftUp.append({ sf::Vector2f(queenMiddlePointPixelPos.x + diagonalLeftUpVec.x * -m_pixelAmount, queenMiddlePointPixelPos.y + diagonalLeftUpVec.y * -m_pixelAmount), queenColor });
-		m_resultTexture.draw(verticesDiagLeftUp);
+			sf::Vector2i lowerRight = queenPos;
+			for (int x = 0; x < m_queensAmount; ++x)
+			{
+				if (lowerRight.x >= m_queensAmount - 1 || lowerRight.y >= m_queensAmount - 1)
+					break;
+				++lowerRight.x;
+				++lowerRight.y;
+			}
 
+			sf::VertexArray vertices(sf::PrimitiveType::Lines, 2);
+			vertices[0] = { sf::Vector2f(m_queenMiddlePointPixelXCoordLUT[upperLeft.x] - queenPixelHalf, m_queenMiddlePointPixelYCoordLUT[upperLeft.y] - queenPixelHalf), queenColor };
+			vertices[1] = { sf::Vector2f(m_queenMiddlePointPixelXCoordLUT[lowerRight.x] + queenPixelHalf, m_queenMiddlePointPixelYCoordLUT[lowerRight.y] + queenPixelHalf), queenColor };
+			m_resultTexture.draw(vertices);
+		}
 
+		/* -------------------------------- DIAGONAL RIGHT UP LINE -------------------------------- */
+		{
+			//quick and dirty solution
+			sf::Vector2i lowerLeft = queenPos;
+			for (int x = 0; x < m_queensAmount; ++x)
+			{
+				if (lowerLeft.x <= 0 || lowerLeft.y >= m_queensAmount - 1)
+					break;
+				--lowerLeft.x;
+				++lowerLeft.y;
+			}
+
+			sf::Vector2i upperRight = queenPos;
+			for (int x = 0; x < m_queensAmount; ++x)
+			{
+				if (upperRight.x >= m_queensAmount - 1 || upperRight.y <= 0)
+					break;
+				++upperRight.x;
+				--upperRight.y;
+			}
+
+			sf::VertexArray vertices(sf::PrimitiveType::Lines, 2);
+			vertices[0] = { sf::Vector2f(m_queenMiddlePointPixelXCoordLUT[lowerLeft.x] - queenPixelHalf, m_queenMiddlePointPixelYCoordLUT[lowerLeft.y] + queenPixelHalf), queenColor };
+			vertices[1] = { sf::Vector2f(m_queenMiddlePointPixelXCoordLUT[upperRight.x] + queenPixelHalf, m_queenMiddlePointPixelYCoordLUT[upperRight.y] - queenPixelHalf), queenColor };
+			m_resultTexture.draw(vertices);
+		}
 	}
 	return true;
 }
