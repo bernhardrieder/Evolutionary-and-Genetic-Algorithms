@@ -1,5 +1,6 @@
 #include <iostream>
 #include <random>
+#include <fstream>
 
 struct Individual
 {
@@ -16,10 +17,6 @@ void OnePlusOneEvolutionStrategy();
 int main(int argc, char** argv)
 {
 
-	OnePlusOneEvolutionStrategy();
-	OnePlusOneEvolutionStrategy();
-	OnePlusOneEvolutionStrategy();
-	OnePlusOneEvolutionStrategy();
 	OnePlusOneEvolutionStrategy();
 
 
@@ -46,6 +43,7 @@ bool isEvolutionStrategyCondition2Fulfilled(const int& a, const int& b)
 }
 
 void printSolution(Individual solution, int iterationCounter, int deathCounter, int* randomIndividualRange, int* randomMutationRange);
+bool SaveToFile(const std::vector<int>& qualityOverIterations, const std::string& path);
 void OnePlusOneEvolutionStrategy()
 {
 	int randomIndividualRange[2] = { -50, 50 };
@@ -62,7 +60,9 @@ void OnePlusOneEvolutionStrategy()
 	int iterationCounter = 0;
 	int maxIterations = 500000;
 	bool initNewIndividual = true;
-	while(true && iterationCounter <= maxIterations)
+	std::vector<int> qualityOverIterations;
+	qualityOverIterations.reserve(maxIterations);
+	while(iterationCounter <= maxIterations)
 	{
 		++iterationCounter;
 		/* -------------------------------------- SELF-REPLICATION -------------------------------------- */
@@ -125,17 +125,21 @@ void OnePlusOneEvolutionStrategy()
 
 			//std::cout << "Quality of Parent: " << parentQuality << ", Quality of Child: " << childQuality << std::endl;
 			//std::cout << ".";
+			qualityOverIterations.push_back(individualQuality);
 
 			//if mutation is better
 			if (mutationQuality < individualQuality)
 				individual = mutation;
 		}
 	}
+	qualityOverIterations.shrink_to_fit();
 
 	if (iterationCounter < maxIterations)
 		printSolution(solution, iterationCounter, deathCounter, randomIndividualRange, randomMutationRange);
 	else
 		std::cout << "Exceeded maximum of iterations! -> Couldn't find a solution!\n";
+	SaveToFile(qualityOverIterations, "1+1.csv");
+	
 }
 
 void printSolution(Individual solution, int iterationCounter, int deathCounter, int* randomIndividualRange, int* randomMutationRange)
@@ -151,7 +155,25 @@ void printSolution(Individual solution, int iterationCounter, int deathCounter, 
 		<< "\n ############ CONDITION 2 ############\n"
 		<< "a > b ==> " << a << " > " << b << std::endl
 		<< "\n ############ SUMMARY ############\n"
-		<< "It took " << iterationCounter << " generations and " << deathCounter << " death" << ((deathCounter > 0) ? "s" : "") << "!" << std::endl
+		<< "It took " << iterationCounter << " iterations and " << deathCounter << " death" << ((deathCounter > 0) ? "s" : "") << "!" << std::endl
 		<< "Individual random range: (" << randomIndividualRange[0] << ", " << randomIndividualRange[1] << ")" << std::endl
 		<< "Mutation random range: (" << randomMutationRange[0] << ", " << randomMutationRange[1] << ")" << std::endl;
+}
+
+bool SaveToFile(const std::vector<int>& qualityOverIterations, const std::string& path)
+{
+	std::ofstream outputFile;
+	outputFile.open(path);
+	if (outputFile.is_open())
+	{
+		for (int i = 0; i < qualityOverIterations.size(); ++i)
+		{
+			outputFile << i << ";" << qualityOverIterations[i] << "\n";
+		}
+		outputFile.close();
+		return true;
+	}
+
+	std::cout << "ERROR: Could not save file '" << path.c_str() << "'!\n";
+	return false;
 }
