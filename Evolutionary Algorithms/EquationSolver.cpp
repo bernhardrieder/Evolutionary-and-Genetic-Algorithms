@@ -3,6 +3,8 @@
 #include <fstream>
 #include <random>
 #include <string>
+#include <map>
+#include <algorithm>
 
 EquationSolver::EquationSolver()
 {
@@ -23,11 +25,10 @@ int EquationSolver::Execute(int argc, char** argv)
 	switch (m_strategy)
 	{
 	default:
-	case OnePlusOne: onePlusOneEvolutionStrategy();
-		break;
-	case muPlusLambda: break;
-	case muCommaLambda: break;
-	case muSlashRohSharpLambda: break;
+	case OnePlusOne: onePlusOneEvolutionStrategy();	break;
+	case muPlusLambda: muPlusLambdaEvolutionStrategy(); break;
+	case muCommaLambda: muCommaLambdaEvolutionStrategy(); break;
+	case muSlashRohSharpLambda: muSlashRohSharpLambdaEvolutionStrategy(); break;
 	}
 
 	getchar();
@@ -37,7 +38,7 @@ int EquationSolver::Execute(int argc, char** argv)
 bool EquationSolver::parseCommandLine(int argc, char** argv)
 {
 	const unsigned requiredArgv = 8; //at least for (1+1)
-	if (argc != requiredArgv + 1)
+	if (argc < requiredArgv + 1)
 	{
 		showUsage(argv[0]);
 		return false;
@@ -107,7 +108,7 @@ bool EquationSolver::hasCommandLineInputError()
 	if (m_mutationRandomRange[0] == 0 && m_mutationRandomRange[1] == 0)
 		return true;
 	if((m_strategy == muCommaLambda || m_strategy == muPlusLambda || m_strategy == muSlashRohSharpLambda) 
-		&& (m_mu == 0 || m_lambda == 0))
+		&& (m_mu <= 0 || m_lambda <= 0))
 			return true;
 	if (m_strategy == muSlashRohSharpLambda 
 		&& m_roh == 0)
@@ -171,7 +172,7 @@ void EquationSolver::printSolution(const Individual& solution, const int& iterat
 	int x = solution.Genes[0], y = solution.Genes[1], a = solution.Genes[2], b = solution.Genes[3];
 
 	std::cout
-		<< "\n############ SOLUTION ############\n"
+		<< "############ SOLUTION ############\n"
 		<< "(<x,y,a,b>) ==> (<" << x << ", " << y << ", " << a << ", " << b << ">)" << std::endl
 		<< "\n############ EQUATION & CONDITION 1 ############\n"
 		<< "3x^2 + 5y^3 = 7a + 3b^2" << std::endl
@@ -209,89 +210,179 @@ void EquationSolver::onePlusOneEvolutionStrategy()
 	Individual individual, solution;
 	size_t sizeOfGenes = _countof(individual.Genes);
 
-	int deathCounter = 0;
 	int iterationCounter = 0;
-	int maxIterations = 500000;
+	int maxIterations = 1000000;
 
 	std::vector<int> qualityOverIterations;
 	qualityOverIterations.reserve(maxIterations);
 
-	bool initNewIndividual = true;
+	/* -------------------------------------- RANDOM START INDIVIDUAL -------------------------------------- */
+	for (int i = 0; i < sizeOfGenes; ++i)
+		individual.Genes[i] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
 
-	while (iterationCounter <= maxIterations)
+	/* -------------------------------------- START EVOLUTION -------------------------------------- */
+	for (; iterationCounter <= maxIterations; ++iterationCounter)
 	{
-		++iterationCounter;
 		/* -------------------------------------- SELF-REPLICATION -------------------------------------- */
-		if (initNewIndividual)
-		{
-			for (int i = 0; i < sizeOfGenes; ++i)
-				individual.Genes[i] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
-			initNewIndividual = false;
-		}
-
 		Individual mutation = individual;
 
 		/* -------------------------------------- RANDOM MUTATION -------------------------------------- */
 		for (int i = 0; i < sizeOfGenes; ++i)
 			mutation.Genes[i] += m_randomMutationDistribution(m_mersenneTwisterEngine);
 
-
 		/* -------------------------------------- SELECTION -------------------------------------- */
-		bool individualUsable = isEvolutionStrategyCondition2Fulfilled(individual);
-		bool mutationUsable = isEvolutionStrategyCondition2Fulfilled(mutation);
+		individual.Usable = isEvolutionStrategyCondition2Fulfilled(individual);
+		mutation.Usable = isEvolutionStrategyCondition2Fulfilled(mutation);
 
-		//both are shit!
-		if (!individualUsable && !mutationUsable)
-		{
-			initNewIndividual = true;
-			++deathCounter;
-			continue;
-		}
-
-		//is individual a solution?
-		if (individualUsable && isEvolutionStrategyCondition1Fulfilled(individual))
-		{
-			solution = individual;
+		//is one of the individuals a solution?
+		if (foundSolution(&individual, 1, solution) || foundSolution(&mutation, 1, solution))
 			break;
-		}
 
-		//is mutation a solution?
-		if (mutationUsable && isEvolutionStrategyCondition1Fulfilled(mutation))
-		{
-			solution = mutation;
-			break;
-		}
-
-		//is just individual usable? -> go ahead
-		if (individualUsable && !mutationUsable)
+		//is just individual usable?
+		if (individual.Usable && !mutation.Usable)
 			continue;
 
 		//is just mutation usable -> use mutation as new individual
-		if (mutationUsable && !individualUsable)
+		if (mutation.Usable && !individual.Usable)
 		{
 			individual = mutation;
 			continue;
 		}
 
-		if (individualUsable || mutationUsable)
-		{
-			//determine better
-			int individualQuality = getDiffenceOfEvolutionStrategyEquation(individual.Genes[0], individual.Genes[1], individual.Genes[2], individual.Genes[3]);
-			int mutationQuality = getDiffenceOfEvolutionStrategyEquation(mutation.Genes[0], mutation.Genes[1], mutation.Genes[2], mutation.Genes[3]);
+		//determine better
+		individual.Quality = individual.Usable ? getDiffenceOfEvolutionStrategyEquation(individual.Genes[0], individual.Genes[1], individual.Genes[2], individual.Genes[3]) : std::numeric_limits<int>::max();
+		mutation.Quality = mutation.Usable ? getDiffenceOfEvolutionStrategyEquation(mutation.Genes[0], mutation.Genes[1], mutation.Genes[2], mutation.Genes[3]) : std::numeric_limits<int>::max();
 
-			//save current quality level
-			qualityOverIterations.push_back(individualQuality);
+		//if mutation is better
+		if (mutation.Quality < individual.Quality)
+			individual = mutation;
 
-			//if mutation is better
-			if (mutationQuality < individualQuality)
-				individual = mutation;
-		}
+		//save new best quality level
+		qualityOverIterations.push_back(individual.Quality);
 	}
+
+	qualityOverIterations.push_back(0);
 	qualityOverIterations.shrink_to_fit();
 
 	if (iterationCounter < maxIterations)
-		printSolution(solution, iterationCounter, deathCounter);
+		printSolution(solution, iterationCounter, 0);
 	else
 		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
 	saveToFile(qualityOverIterations, "1+1.csv");
+}
+
+/*
+ * Bei der (μ + λ) – Evolutionsstrategie handelt es sich um eine Verallgemeinerung der (1 + 1) – Evolutionsstrategie, 
+ * die den seriellen Charakter der (1 + 1) – Evolutionsstrategie überwindet, indem nicht nur ein Individuum, sondern 
+ * eine Population bearbeitet wird. Dabei ist μ die Anzahl der Elter-Individuen und λ die Anzahl der von diesen zu 
+ * erzeugenden Nachkommen, wobei μ und λ ganze Zahlen und λ ≥ μ ≥ 1 sind.
+ * 
+ * Die Evolutionsschritte laufen prinzipiell genau so ab, wie bei der (1 + 1) – Evolutionsstrategie. Von den μ Eltern
+ * werden mit gleicher Wahrscheinlichkeit zufällig λ Eltern zur Erzeugung von λ Nachkommen ausgewählt. Dabei ist eine 
+ * Mehrfachauswahl nicht nur möglich, sondern, für den Fall, dass μ < λ ist, auch nötig. Wie auch bei der (1 + 1) – 
+ * Evolutionsstrategie werden die λ Nachkommen mutiert und gemeinsam mit den Eltern bewertet. Aus der Selektionsurne, 
+ * in der gleichermaßen die Eltern wie auch die mutierten Nachkommen landen, werden die μ besten Individuen als Eltern 
+ * der nächsten Generation ausgewählt.
+ * 
+ * Aus dieser Strategie resultiert – aufgrund der Tatsache, dass grundsätzlich die Eltern und Nachkommen zur Selektion 
+ * herangezogen werden – dass die Qualität der Individuen einer Population von Generation zu Generation nie schlechter 
+ * werden kann, wobei die Größe der Elternpopulation stets gleich bleibt.
+ */
+void EquationSolver::muPlusLambdaEvolutionStrategy()
+{
+	Individual solution;
+	size_t sizeOfGenes = _countof(solution.Genes);
+
+	std::vector<Individual> parents, children, individuals;
+	parents.resize(m_mu);
+	children.resize(m_lambda); 
+	individuals.resize(m_mu + m_lambda);
+
+	std::uniform_int_distribution<> randomParentDistribution(0, m_mu - 1);
+
+	int iterationCounter = 0;
+	int maxIterations = 500000;
+
+	std::vector<int> qualityOverIterations;
+	qualityOverIterations.reserve(maxIterations);
+
+	/* -------------------------------------- RANDOM START PARENTS -------------------------------------- */
+	for (int i = 0; i < parents.size(); ++i)
+		for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+			parents[i].Genes[geneIndex] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
+
+	/* -------------------------------------- START EVOLUTION -------------------------------------- */
+	for(; iterationCounter <= maxIterations; ++iterationCounter)
+	{
+		//add all new parents to a summary array
+		for(int i = 0; i < parents.size(); ++i)
+			individuals[i] = parents[i];
+
+		for(int i = 0; i < children.size(); ++i)
+		{
+			/* -------------------------------------- SELF-REPLICATION -------------------------------------- */
+			children[i] = parents[randomParentDistribution(m_mersenneTwisterEngine)];
+
+			/* -------------------------------------- RANDOM MUTATION -------------------------------------- */
+			for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+				children[i].Genes[geneIndex] += m_randomMutationDistribution(m_mersenneTwisterEngine);
+
+			//add to a summary array
+			individuals[parents.size()+ i] = children[i];
+		}
+
+		/* -------------------------------------- SELECTION -------------------------------------- */
+		//which of the individuals fulfill the condition 2?
+		for(int i = 0; i < individuals.size(); ++i)
+			individuals[i].Usable = isEvolutionStrategyCondition2Fulfilled(individuals[i]);
+
+		//is one of the individuals the solution?
+		if (foundSolution(&individuals[0], individuals.size(), solution))
+			break;
+
+		//determine quality
+		for (int i = 0; i < individuals.size(); ++i)
+			individuals[i].Quality = individuals[i].Usable ? getDiffenceOfEvolutionStrategyEquation(individuals[i].Genes[0], individuals[i].Genes[1], individuals[i].Genes[2], individuals[i].Genes[3]) : std::numeric_limits<int>::max();
+
+		//TODO: check if sorted as intended!
+		std::random_shuffle(individuals.begin(), individuals.end());
+		std::sort(individuals.begin(), individuals.end(), [](const Individual& lhs, const Individual& rhs) { return lhs.Quality < rhs.Quality; });
+
+		//save best quality level
+		qualityOverIterations.push_back(individuals[0].Quality);
+
+		//choose mu best individuals from all individuals
+		for(int i = 0; i < parents.size(); ++i)
+			parents[i] = individuals[i];
+	}
+
+	qualityOverIterations.push_back(0);
+	qualityOverIterations.shrink_to_fit();
+
+	if (iterationCounter < maxIterations)
+		printSolution(solution, iterationCounter, 0);
+	else
+		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
+	saveToFile(qualityOverIterations, "mu+lambda.csv");
+}
+
+bool EquationSolver::foundSolution(const Individual* individualsArray, const size_t& amount, Individual& outSolution) const
+{
+	for (int i = 0; i < amount; ++i)
+	{
+		if (individualsArray[i].Usable && isEvolutionStrategyCondition1Fulfilled(individualsArray[i]))
+		{
+			outSolution = individualsArray[i];
+			return true;
+		}
+	}
+	return false;
+}
+
+void EquationSolver::muCommaLambdaEvolutionStrategy()
+{
+}
+
+void EquationSolver::muSlashRohSharpLambdaEvolutionStrategy()
+{
 }

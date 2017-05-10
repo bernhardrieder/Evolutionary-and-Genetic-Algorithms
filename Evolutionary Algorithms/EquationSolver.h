@@ -6,11 +6,15 @@
 struct Individual
 {
 	int Genes[4];
+	bool Usable;
+	int Quality;
 
 	Individual& operator= (const Individual& other)
 	{
 		for (int i = 0; i < 4; ++i)
 			Genes[i] = other.Genes[i];
+		Usable = other.Usable;
+		Quality = other.Quality;
 		return *this;
 	}
 };
@@ -46,6 +50,10 @@ private:
 	static bool saveToFile(const std::vector<int>& qualityOverIterations, const std::string& path);
 
 	void onePlusOneEvolutionStrategy();
+	void muPlusLambdaEvolutionStrategy();
+	bool foundSolution(const Individual* individualsArray, const size_t& amount, Individual& outSolution) const;
+	void muCommaLambdaEvolutionStrategy();
+	void muSlashRohSharpLambdaEvolutionStrategy();
 
 	EquationSolverStrategy m_strategy = None;
 	int m_individualRandomRange[2] = { 0,0 }; 
