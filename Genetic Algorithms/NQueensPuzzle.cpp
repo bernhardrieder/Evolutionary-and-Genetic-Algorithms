@@ -1,6 +1,7 @@
 #include "NQueensPuzzle.h"
 #include <SFML/Graphics/VertexArray.hpp>
 #include <iostream>
+#include "GeneticAlgorithm.h"
 
 NQueensPuzzle::NQueensPuzzle() : m_queensAmount(0), m_pixelAmount(0)
 {
@@ -18,9 +19,11 @@ int NQueensPuzzle::Execute(int argc, char** argv)
 
 	std::cout << "INFO: Start solving '" + std::to_string(m_queensAmount) + " Queens Puzzle'\n";
 	PuzzleResult result;
+	result.Positions.resize(m_queensAmount);
 	if (!solvePuzzle(result))
 	{
 		std::cerr << "ERROR: Couldn't solve Puzzle! :(\n";
+		getchar();
 		return 0;
 	}
 	std::cout << "INFO: Solved successfully!\n";
@@ -28,9 +31,10 @@ int NQueensPuzzle::Execute(int argc, char** argv)
 	if(!createAndSaveResultTextureOnFileSystem(result))
 	{
 		std::cerr << "ERROR: Couldn't save result on filesystem! :(\n";
+		getchar();
 		return 0;
 	}
-
+	getchar();
 	return 1;
 }
 
@@ -55,9 +59,9 @@ bool NQueensPuzzle::parseCommandLine(int argc, char** argv)
 			m_queensAmount = std::stoi(argv[++i]);
 	}
 
-	if(m_queensAmount <= 0)
+	if(m_queensAmount <= 0 || m_queensAmount % 2 == 1)
 	{
-		std::cerr << "ERROR: Input Error! Give at least a positive number for the amount of Queens with the parameter '-n <NUM>'!\n";
+		std::cerr << "ERROR: Input Error! Give at least a positive number which is dividable by 2 for the amount of Queens with the parameter '-n <NUM>'!\n";
 		return false;
 	}
 	return true;
@@ -74,7 +78,18 @@ void NQueensPuzzle::showUsage(char* appExecutionPath)
 
 bool NQueensPuzzle::solvePuzzle(PuzzleResult& outResult)
 {
-	return true;
+	GeneticAlgorithm solver;
+	bool success;
+	std::vector<int> resultChromosome = solver.SolveNQueensPuzzle(m_queensAmount, outResult.NeededIterations, success);
+	if(success)
+	{
+		for(int i = 0; i < m_queensAmount; ++i)
+		{
+			outResult.Positions[i].y = i;
+			outResult.Positions[i].x = resultChromosome[i]; //gene
+		}
+	}
+	return success;
 }
 
 bool NQueensPuzzle::createAndSaveResultTextureOnFileSystem(const PuzzleResult& puzzleResult)
