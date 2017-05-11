@@ -23,7 +23,6 @@ int NQueensPuzzle::Execute(int argc, char** argv)
 	if (!solvePuzzle(result))
 	{
 		std::cerr << "ERROR: Couldn't solve Puzzle! :(\n";
-		getchar();
 		return 0;
 	}
 	std::cout << "INFO: Solved successfully!\n";
@@ -31,10 +30,8 @@ int NQueensPuzzle::Execute(int argc, char** argv)
 	if(!createAndSaveResultTextureOnFileSystem(result))
 	{
 		std::cerr << "ERROR: Couldn't save result on filesystem! :(\n";
-		getchar();
 		return 0;
 	}
-	getchar();
 	return 1;
 }
 
@@ -59,9 +56,9 @@ bool NQueensPuzzle::parseCommandLine(int argc, char** argv)
 			m_queensAmount = std::stoi(argv[++i]);
 	}
 
-	if(m_queensAmount <= 0 || m_queensAmount % 2 == 1)
+	if(m_queensAmount <= 4 || m_queensAmount % 2 == 1)
 	{
-		std::cerr << "ERROR: Input Error! Give at least a positive number which is dividable by 2 for the amount of Queens with the parameter '-n <NUM>'!\n";
+		std::cerr << "ERROR: Input Error! Give at least a number >= 4 which is dividable by 2 for the amount of Queens with the parameter '-n <NUM>'!\n";
 		return false;
 	}
 	return true;
@@ -72,7 +69,7 @@ void NQueensPuzzle::showUsage(char* appExecutionPath)
 	std::cerr << "Usage: " << appExecutionPath << " <option(s)>\n\n"
 		<< "Options:\n"
 		<< "\t-h,--help\tShow this help message\n"
-		<< "\t-n <NUM>\t\tAmount of queens in puzzle.\n"
+		<< "\t-n <NUM>\tAmount of queens in puzzle.\n"
 		<< std::endl;
 }
 
@@ -178,7 +175,7 @@ bool NQueensPuzzle::drawQueensInResultTexture(const PuzzleResult& puzzleResult)
 		while(queenColor.r < 20 || queenColor.r > 220 || queenColor.g < 20 || queenColor.g > 220 || queenColor.b < 20 || queenColor.b > 220)
 			queenColor = sf::Color(rand() % 255, rand() % 255, rand() % 255);
 
-		/* -------------------------------- QUEEN LINE -------------------------------- */
+		/* -------------------------------- QUEEN QUAD -------------------------------- */
 		{
 			sf::VertexArray vertices(sf::PrimitiveType::Quads, 4);
 			vertices[0] = { sf::Vector2f(queenMiddlePointPixelPos.x - queenPixelHalf, queenMiddlePointPixelPos.y + queenPixelHalf), queenColor }; // lower left

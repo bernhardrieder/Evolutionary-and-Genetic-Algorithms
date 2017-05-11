@@ -1,12 +1,9 @@
 #include "GeneticAlgorithm.h"
 
-
-
 GeneticAlgorithm::GeneticAlgorithm()
 {
 	m_mersenneTwisterEngine = std::mt19937_64(m_randomDevice());
 }
-
 
 GeneticAlgorithm::~GeneticAlgorithm()
 {
@@ -40,6 +37,16 @@ std::vector<int> GeneticAlgorithm::SolveNQueensPuzzle(const int& queensAmount, i
 	return m_population.BestIndividual->Genes;
 }
 
+GeneticAlgorithm::Individual& GeneticAlgorithm::Individual::operator=(const Individual& other)
+{
+	Genes.resize(other.Genes.size());
+	for (int i = 0; i < Genes.size(); i++)
+		Genes[i] = other.Genes[i];
+	Fitness = other.Fitness;
+	Best = other.Best;
+	return *this;
+}
+
 void GeneticAlgorithm::Individual::ResetFitness()
 {
 	Fitness = 1; //fitness goes along minus
@@ -47,6 +54,7 @@ void GeneticAlgorithm::Individual::ResetFitness()
 
 void GeneticAlgorithm::Individual::Reset()
 {
+	Best = false;
 	for (int i = 0; i < Genes.size(); ++i)
 		Genes[i] = -1;
 	ResetFitness();
@@ -131,6 +139,7 @@ int GeneticAlgorithm::Population::EvaluateFitness()
 			bestIndividual = Individuals[i];
 
 	BestIndividual = &bestIndividual;
+	BestIndividual->Best = true;
 	return bestIndividual.Fitness;
 }
 
@@ -138,7 +147,8 @@ void GeneticAlgorithm::Population::OnePointCrossoverWithWedding(const std::unifo
 {
 	// one point crossover of pairs of individuals
 	for (int i = 0; i < Individuals.size(); i += 2)
-		Individuals[i].OnePointCrossover(Individuals[i + 1], randomChromosomeGeneDistribution, mersenneTwisterEngine);
+		if(!(Individuals[i].Best || Individuals[i + 1].Best))
+			Individuals[i].OnePointCrossover(Individuals[i + 1], randomChromosomeGeneDistribution, mersenneTwisterEngine);
 }
 
 void GeneticAlgorithm::Population::Mutate(const float& probability, const std::uniform_int_distribution<>& randomChromosomeGeneDistribution, const std::uniform_real_distribution<>& randomProbabilityDistirbution, std::mt19937_64& mersenneTwisterEngine)
@@ -152,7 +162,10 @@ void GeneticAlgorithm::Population::Selection(int torunamentSize, bool preserveBe
 	int i = Individuals.size();
 
 	if (preserveBestIndividual)
+	{
+		BestIndividual->Best = false;
 		SelectionTmpBuffer[--i] = *BestIndividual;
+	}
 
 	while (--i >= 0)
 		SelectionTmpBuffer[i] = TournamentSelection(torunamentSize, randomChromosomeGeneDistribution, mersenneTwisterEngine);

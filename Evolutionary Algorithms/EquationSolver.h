@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <random>
+#include <functional>
 
 struct Individual
 {
@@ -37,6 +38,20 @@ namespace EquationSolverStrategy
 		muSlashRohPlusLambda,
 		muSlashRohCommaLambda
 	};
+
+	inline std::string to_string(Enum strategy)
+	{
+		switch(strategy)
+		{
+		default:
+		case None: return "None";
+		case OnePlusOne: return "OnePlusOne";
+		case muPlusLambda: return "muPlusLambda";
+		case muCommaLambda: return "muCommaLambda";
+		case muSlashRohPlusLambda: return "muSlashRohPlusLambda";
+		case muSlashRohCommaLambda: return "muSlashRohCommaLambda";
+		}
+	}
 }
 namespace MuSlashRohSharpLambdaRecombination
 {
@@ -69,16 +84,18 @@ private:
 	void printSolution(const Individual& solution, const int& iterationCounter, const int& deathCounter) const;
 	static bool saveToFile(const std::vector<int>& qualityOverIterations, const std::string& path);
 
-	void onePlusOneEvolutionStrategy();
-	void muPlusLambdaEvolutionStrategy();
-	bool foundSolution(const Individual* individualsArray, const size_t& amount, Individual& outSolution) const;
-	void muCommaLambdaEvolutionStrategy();
-	void muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrategy::Enum strategy);
+	void executeEvolutionStrategy(std::function<void(const int&, int&, Individual&, std::vector<int>&)> strategyFunction);
+	void onePlusOneEvolutionStrategy(const int& maxIterations, int& outIterationCounter, Individual& outSolution, std::vector<int>& qualityOverIterations);
+	void muPlusLambdaEvolutionStrategy(const int& maxIterations, int& iterationCounter, Individual& solution, std::vector<int>& qualityOverIterations);
+	void muCommaLambdaEvolutionStrategy(const int& maxIterations, int& iterationCounter, Individual& solution, std::vector<int>& qualityOverIterations);
+	void muSlashRohSharpLambdaEvolutionStrategy(const int& maxIterations, int& iterationCounter, Individual& solution, std::vector<int>& qualityOverIterations);
 	void muSlashRohSharpLambaRecombination( std::vector<Individual>& parents, Individual& outChild, const std::uniform_int_distribution<>& randomParentDistribution, const std::uniform_int_distribution<>& randomGeneDistribution);
 	bool checkConditionsAndReturnTrueIfSolutionFound(std::vector<Individual>& inOutIndividuals, Individual& outSolution) const;
-	void plusSelection(std::vector<Individual>& inOutIndividuals, std::vector<Individual>& inOutParents, std::vector<int> inOutQualityOverIterations);
-	void commaSelection(std::vector<Individual>& inOutParents, std::vector<Individual>& inOutChildren, const std::vector<Individual>& individuals, std::vector<int> inOutQualityOverIterations);
+	bool foundSolution(const Individual* individualsArray, const size_t& amount, Individual& outSolution) const;
+	void plusSelection(std::vector<Individual>& inOutIndividuals, std::vector<Individual>& inOutParents, std::vector<int>& inOutQualityOverIterations);
+	void commaSelection(std::vector<Individual>& inOutParents, std::vector<Individual>& inOutChildren, const std::vector<Individual>& individuals, std::vector<int>& inOutQualityOverIterations);
 
+	const size_t m_sizeofGenes = 4;
 	EquationSolverStrategy::Enum m_strategy = EquationSolverStrategy::None;
 	int m_individualRandomRange[2] = { 0,0 }; 
 	int m_mutationRandomRange[2] = { 0,0 };
