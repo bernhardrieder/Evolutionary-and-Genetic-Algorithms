@@ -24,12 +24,13 @@ int EquationSolver::Execute(int argc, char** argv)
 
 	switch (m_strategy)
 	{
-	default:
-	case EquationSolverStrategy::OnePlusOne: onePlusOneEvolutionStrategy();	break;
-	case EquationSolverStrategy::muPlusLambda: muPlusLambdaEvolutionStrategy(); break;
-	case EquationSolverStrategy::muCommaLambda: muCommaLambdaEvolutionStrategy(); break;
-	case EquationSolverStrategy::muSlashRohPlusLambda: muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrategy::muSlashRohPlusLambda); break;
-	case EquationSolverStrategy::muSlashRohCommaLambda: muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrategy::muSlashRohCommaLambda); break;
+		using namespace std::placeholders;
+		default:
+		case EquationSolverStrategy::OnePlusOne: executeEvolutionStrategy(std::bind(&EquationSolver::onePlusOneEvolutionStrategy, this, _1, _2, _3, _4)); break;
+		case EquationSolverStrategy::muPlusLambda: executeEvolutionStrategy(std::bind(&EquationSolver::muPlusLambdaEvolutionStrategy, this, _1, _2, _3, _4)); break;
+		case EquationSolverStrategy::muCommaLambda: executeEvolutionStrategy(std::bind(&EquationSolver::muCommaLambdaEvolutionStrategy, this, _1, _2, _3, _4)); break;
+		case EquationSolverStrategy::muSlashRohPlusLambda: executeEvolutionStrategy(std::bind(&EquationSolver::muSlashRohSharpLambdaEvolutionStrategy, this, _1, _2, _3, _4)); break;
+		case EquationSolverStrategy::muSlashRohCommaLambda: executeEvolutionStrategy(std::bind(&EquationSolver::muSlashRohSharpLambdaEvolutionStrategy, this, _1, _2, _3, _4)); break;
 	}
 
 	return 1;
@@ -197,8 +198,6 @@ void EquationSolver::printSolution(const Individual& solution, const int& iterat
 		<< "Mutation random range: (" << m_mutationRandomRange[0] << ", " << m_mutationRandomRange[1] << ")" << std::endl;
 }
 
-
-
 bool EquationSolver::saveToFile(const std::vector<int>& qualityOverIterations, const std::string& path)
 {
 	std::ofstream outputFile;
@@ -218,10 +217,9 @@ bool EquationSolver::saveToFile(const std::vector<int>& qualityOverIterations, c
 	return false;
 }
 
-void EquationSolver::onePlusOneEvolutionStrategy()
+void EquationSolver::executeEvolutionStrategy(std::function<void(const int&, int&, Individual&, std::vector<int>&)> strategyFunction)
 {
-	Individual individual, solution;
-	size_t sizeOfGenes = _countof(individual.Genes);
+	Individual solution;
 
 	int iterationCounter = 0;
 	int maxIterations = 1000000;
@@ -229,8 +227,24 @@ void EquationSolver::onePlusOneEvolutionStrategy()
 	std::vector<int> qualityOverIterations;
 	qualityOverIterations.reserve(maxIterations);
 
+	strategyFunction(maxIterations, iterationCounter, solution, qualityOverIterations);
+
+	qualityOverIterations.push_back(0);
+	qualityOverIterations.shrink_to_fit();
+
+	if (iterationCounter < maxIterations)
+		printSolution(solution, iterationCounter, 0);
+	else
+		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
+	saveToFile(qualityOverIterations, to_string(m_strategy) + ".csv");
+}
+
+void EquationSolver::onePlusOneEvolutionStrategy(const int& maxIterations, int& iterationCounter, Individual& solution, std::vector<int>& qualityOverIterations)
+{
+	Individual individual;
+
 	/* -------------------------------------- RANDOM START INDIVIDUAL -------------------------------------- */
-	for (int i = 0; i < sizeOfGenes; ++i)
+	for (int i = 0; i < m_sizeofGenes; ++i)
 		individual.Genes[i] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
 
 	/* -------------------------------------- START EVOLUTION -------------------------------------- */
@@ -240,7 +254,7 @@ void EquationSolver::onePlusOneEvolutionStrategy()
 		Individual mutation = individual;
 
 		/* -------------------------------------- RANDOM MUTATION -------------------------------------- */
-		for (int i = 0; i < sizeOfGenes; ++i)
+		for (int i = 0; i < m_sizeofGenes; ++i)
 			mutation.Genes[i] += m_randomMutationDistribution(m_mersenneTwisterEngine);
 
 		/* -------------------------------------- SELECTION -------------------------------------- */
@@ -273,22 +287,10 @@ void EquationSolver::onePlusOneEvolutionStrategy()
 		//save new best quality level
 		qualityOverIterations.push_back(individual.Quality);
 	}
-
-	qualityOverIterations.push_back(0);
-	qualityOverIterations.shrink_to_fit();
-
-	if (iterationCounter < maxIterations)
-		printSolution(solution, iterationCounter, 0);
-	else
-		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
-	saveToFile(qualityOverIterations, "1+1.csv");
 }
 
-void EquationSolver::muPlusLambdaEvolutionStrategy()
+void EquationSolver::muPlusLambdaEvolutionStrategy(const int& maxIterations, int& iterationCounter, Individual& solution, std::vector<int>& qualityOverIterations)
 {
-	Individual solution;
-	size_t sizeOfGenes = _countof(solution.Genes);
-
 	std::vector<Individual> parents, children, individuals;
 	parents.resize(m_mu);
 	children.resize(m_lambda); 
@@ -296,15 +298,9 @@ void EquationSolver::muPlusLambdaEvolutionStrategy()
 
 	std::uniform_int_distribution<> randomParentDistribution(0, m_mu - 1);
 
-	int iterationCounter = 0;
-	int maxIterations = 500000;
-
-	std::vector<int> qualityOverIterations;
-	qualityOverIterations.reserve(maxIterations);
-
 	/* -------------------------------------- RANDOM START PARENTS -------------------------------------- */
 	for (int i = 0; i < parents.size(); ++i)
-		for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+		for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 			parents[i].Genes[geneIndex] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
 
 	/* -------------------------------------- START EVOLUTION -------------------------------------- */
@@ -320,7 +316,7 @@ void EquationSolver::muPlusLambdaEvolutionStrategy()
 			children[i] = parents[randomParentDistribution(m_mersenneTwisterEngine)];
 
 			/* -------------------------------------- RANDOM MUTATION -------------------------------------- */
-			for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+			for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 				children[i].Genes[geneIndex] += m_randomMutationDistribution(m_mersenneTwisterEngine);
 
 			//add to a summary array
@@ -333,35 +329,10 @@ void EquationSolver::muPlusLambdaEvolutionStrategy()
 
 		plusSelection(individuals, parents, qualityOverIterations);
 	}
-
-	qualityOverIterations.push_back(0);
-	qualityOverIterations.shrink_to_fit();
-
-	if (iterationCounter < maxIterations)
-		printSolution(solution, iterationCounter, 0);
-	else
-		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
-	saveToFile(qualityOverIterations, "mu+lambda.csv");
 }
 
-bool EquationSolver::foundSolution(const Individual* individualsArray, const size_t& amount, Individual& outSolution) const
+void EquationSolver::muCommaLambdaEvolutionStrategy(const int& maxIterations, int& iterationCounter, Individual& solution, std::vector<int>& qualityOverIterations)
 {
-	for (int i = 0; i < amount; ++i)
-	{
-		if (individualsArray[i].Usable && isEvolutionStrategyCondition1Fulfilled(individualsArray[i]))
-		{
-			outSolution = individualsArray[i];
-			return true;
-		}
-	}
-	return false;
-}
-
-void EquationSolver::muCommaLambdaEvolutionStrategy()
-{
-	Individual solution;
-	size_t sizeOfGenes = _countof(solution.Genes);
-
 	std::vector<Individual> parents, children, individuals;
 	parents.resize(m_mu);
 	children.resize(m_lambda);
@@ -369,15 +340,9 @@ void EquationSolver::muCommaLambdaEvolutionStrategy()
 
 	std::uniform_int_distribution<> randomParentDistribution(0, m_mu - 1);
 
-	int iterationCounter = 0;
-	int maxIterations = 500000;
-
-	std::vector<int> qualityOverIterations;
-	qualityOverIterations.reserve(maxIterations);
-
 	/* -------------------------------------- RANDOM START PARENTS -------------------------------------- */
 	for (int i = 0; i < parents.size(); ++i)
-		for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+		for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 			parents[i].Genes[geneIndex] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
 
 	/* -------------------------------------- START EVOLUTION -------------------------------------- */
@@ -393,7 +358,7 @@ void EquationSolver::muCommaLambdaEvolutionStrategy()
 			children[i] = parents[randomParentDistribution(m_mersenneTwisterEngine)];
 
 			/* -------------------------------------- RANDOM MUTATION -------------------------------------- */
-			for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+			for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 				children[i].Genes[geneIndex] += m_randomMutationDistribution(m_mersenneTwisterEngine);
 
 			//add to a summary array
@@ -406,23 +371,10 @@ void EquationSolver::muCommaLambdaEvolutionStrategy()
 
 		commaSelection(parents, children, individuals, qualityOverIterations);
 	}
-
-	qualityOverIterations.push_back(0);
-	qualityOverIterations.shrink_to_fit();
-
-	if (iterationCounter < maxIterations)
-		printSolution(solution, iterationCounter, 0);
-	else
-		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
-	saveToFile(qualityOverIterations, "mu,lambda.csv");
-
 }
 
-void EquationSolver::muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrategy::Enum strategy)
+void EquationSolver::muSlashRohSharpLambdaEvolutionStrategy(const int& maxIterations, int& iterationCounter, Individual& solution, std::vector<int>& qualityOverIterations)
 {
-	Individual solution;
-	const size_t sizeOfGenes = _countof(solution.Genes);
-
 	std::vector<Individual> parents, children, individuals;
 	parents.resize(m_mu);
 	children.resize(m_lambda);
@@ -431,15 +383,9 @@ void EquationSolver::muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrate
 	std::uniform_int_distribution<> randomParentDistribution(0, m_mu - 1);
 	std::uniform_int_distribution<> randomGeneDistribution(0, m_roh - 1);
 
-	int iterationCounter = 0;
-	int maxIterations = 500000;
-
-	std::vector<int> qualityOverIterations;
-	qualityOverIterations.reserve(maxIterations);
-
 	/* -------------------------------------- RANDOM START PARENTS -------------------------------------- */
 	for (int i = 0; i < parents.size(); ++i)
-		for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+		for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 			parents[i].Genes[geneIndex] = m_randomIndividualDistribution(m_mersenneTwisterEngine);
 
 	/* -------------------------------------- START EVOLUTION -------------------------------------- */
@@ -455,7 +401,7 @@ void EquationSolver::muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrate
 			muSlashRohSharpLambaRecombination(parents, children[i], randomParentDistribution, randomGeneDistribution);
 
 			/* -------------------------------------- RANDOM MUTATION -------------------------------------- */
-			for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+			for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 				children[i].Genes[geneIndex] += m_randomMutationDistribution(m_mersenneTwisterEngine);
 
 			//add to a summary array
@@ -466,27 +412,15 @@ void EquationSolver::muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrate
 		if (checkConditionsAndReturnTrueIfSolutionFound(individuals, solution))
 			break;
 
-		if (strategy == EquationSolverStrategy::muSlashRohPlusLambda)
+		if (m_strategy == EquationSolverStrategy::muSlashRohPlusLambda)
 			plusSelection(individuals, parents, qualityOverIterations);
-		else if(strategy == EquationSolverStrategy::muSlashRohCommaLambda)
+		else if(m_strategy == EquationSolverStrategy::muSlashRohCommaLambda)
 			commaSelection(parents, children, individuals, qualityOverIterations);
 	}
-
-	qualityOverIterations.push_back(0);
-	qualityOverIterations.shrink_to_fit();
-
-	if (iterationCounter < maxIterations)
-		printSolution(solution, iterationCounter, 0);
-	else
-		std::cout << "Exceeded maximum iterations of " << maxIterations << "! -> Couldn't find a solution!\n";
-
-	std::string type = strategy == EquationSolverStrategy::muSlashRohPlusLambda ? ("+") : (",");
-	saveToFile(qualityOverIterations, "mu_p" + type + "lambda.csv");
 }
 
 void EquationSolver::muSlashRohSharpLambaRecombination(std::vector<Individual>& parents, Individual& outChild,  const std::uniform_int_distribution<>& randomParentDistribution, const std::uniform_int_distribution<>& randomGeneDistribution)
 {
-	int sizeOfGenes = _countof(parents[0].Genes);
 	if (m_muSlashRohSharpLambdaRecombination == MuSlashRohSharpLambdaRecombination::Combination)
 	{
 		std::vector<Individual*> randomParents;
@@ -495,7 +429,7 @@ void EquationSolver::muSlashRohSharpLambaRecombination(std::vector<Individual>& 
 		{
 			randomParents.push_back(&parents[randomParentDistribution(m_mersenneTwisterEngine)]);
 		}
-		for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+		for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 		{
 			outChild.Genes[geneIndex] = randomParents[randomGeneDistribution(m_mersenneTwisterEngine)]->Genes[geneIndex];
 		}
@@ -505,12 +439,12 @@ void EquationSolver::muSlashRohSharpLambaRecombination(std::vector<Individual>& 
 		outChild.Reset();
 		for (int p = 0; p < m_roh; ++p)
 		{
-			for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+			for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 			{
 				outChild.Genes[geneIndex] += parents[randomParentDistribution(m_mersenneTwisterEngine)].Genes[geneIndex];
 			}
 		}
-		for (int geneIndex = 0; geneIndex < sizeOfGenes; ++geneIndex)
+		for (int geneIndex = 0; geneIndex < m_sizeofGenes; ++geneIndex)
 			outChild.Genes[geneIndex] /= m_roh;
 	}
 }
@@ -524,6 +458,19 @@ bool EquationSolver::checkConditionsAndReturnTrueIfSolutionFound(std::vector<Ind
 	//is one of the individuals the solution?
 	if (foundSolution(&individuals[0], individuals.size(), solution))
 		return true;
+	return false;
+}
+
+bool EquationSolver::foundSolution(const Individual* individualsArray, const size_t& amount, Individual& outSolution) const
+{
+	for (int i = 0; i < amount; ++i)
+	{
+		if (individualsArray[i].Usable && isEvolutionStrategyCondition1Fulfilled(individualsArray[i]))
+		{
+			outSolution = individualsArray[i];
+			return true;
+		}
+	}
 	return false;
 }
 
