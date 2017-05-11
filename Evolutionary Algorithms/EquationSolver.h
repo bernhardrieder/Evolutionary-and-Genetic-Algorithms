@@ -76,8 +76,8 @@ private:
 	void muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrategy::Enum strategy);
 	void muSlashRohSharpLambaRecombination( std::vector<Individual>& parents, Individual& outChild, const std::uniform_int_distribution<>& randomParentDistribution, const std::uniform_int_distribution<>& randomGeneDistribution);
 	bool checkConditionsAndReturnTrueIfSolutionFound(std::vector<Individual>& inOutIndividuals, Individual& outSolution) const;
-	void plusSelection(std::vector<Individual>& inOutIndividuals, std::vector<Individual>& inOutParents, std::vector<int> inOutQualityOverIterations);
-	void commaSelection(std::vector<Individual>& inOutParents, std::vector<Individual>& inOutChildren, const std::vector<Individual>& individuals, std::vector<int> inOutQualityOverIterations);
+	void plusSelection(std::vector<Individual>& inOutIndividuals, std::vector<Individual>& inOutParents, std::vector<int>& inOutQualityOverIterations);
+	void commaSelection(std::vector<Individual>& inOutParents, std::vector<Individual>& inOutChildren, const std::vector<Individual>& individuals, std::vector<int>& inOutQualityOverIterations);
 
 	EquationSolverStrategy::Enum m_strategy = EquationSolverStrategy::None;
 	int m_individualRandomRange[2] = { 0,0 }; 
