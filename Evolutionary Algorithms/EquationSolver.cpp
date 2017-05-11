@@ -111,9 +111,9 @@ bool EquationSolver::hasCommandLineInputError()
 {
 	if (m_strategy == EquationSolverStrategy::None)
 		return true;
-	if (m_individualRandomRange[0] == 0 && m_individualRandomRange[1] == 0)
+	if ((m_individualRandomRange[0] == 0 && m_individualRandomRange[1] == 0) || m_individualRandomRange[0] > m_individualRandomRange[1])
 		return true;
-	if (m_mutationRandomRange[0] == 0 && m_mutationRandomRange[1] == 0)
+	if ((m_mutationRandomRange[0] == 0 && m_mutationRandomRange[1] == 0) || m_mutationRandomRange[0] > m_mutationRandomRange[1])
 		return true;
 	if((m_strategy == EquationSolverStrategy::muCommaLambda || m_strategy == EquationSolverStrategy::muPlusLambda || m_strategy == EquationSolverStrategy::muSlashRohPlusLambda || m_strategy == EquationSolverStrategy::muSlashRohCommaLambda)
 		&& (m_mu <= 0 || m_lambda <= 0))
