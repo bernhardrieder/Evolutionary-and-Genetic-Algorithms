@@ -7,6 +7,7 @@ class NQueensPuzzle
 	struct PuzzleResult
 	{
 		std::vector<sf::Vector2i> Positions;
+		int NeededIterations;
 	};
 public:
 	NQueensPuzzle();
@@ -28,12 +29,12 @@ private:
 	
 
 	sf::RenderTexture m_resultTexture;
-	sf::Vector2u m_textureDimension;
+	sf::Vector2i m_textureDimension;
 	std::vector<int> m_queenMiddlePointPixelXCoordLUT;
 	std::vector<int> m_queenMiddlePointPixelYCoordLUT;
-	unsigned m_queensAmount;
-	unsigned m_pixelAmount;
-	const unsigned m_queensPixel = 20;
-	const unsigned m_gridPixel = 1;
+	int m_queensAmount;
+	int m_pixelAmount;
+	const int m_queensPixel = 20;
+	const int m_gridPixel = 1;
 };
 
