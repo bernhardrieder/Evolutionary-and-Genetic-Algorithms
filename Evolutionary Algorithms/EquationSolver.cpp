@@ -32,7 +32,6 @@ int EquationSolver::Execute(int argc, char** argv)
 	case EquationSolverStrategy::muSlashRohCommaLambda: muSlashRohSharpLambdaEvolutionStrategy(EquationSolverStrategy::muSlashRohCommaLambda); break;
 	}
 
-	getchar();
 	return 1;
 }
 
@@ -137,7 +136,8 @@ void EquationSolver::showUsage(char* appExecutionPath) const
 		<< "\t" << CMD_IDs.OnePlusOne << "\tExecutes solver with (1+1) Evolution Strategy with given random parameter.\n"
 		<< "\t" << CMD_IDs.MuPlusLambda << "\tExecutes solver with (mu+lambda) Evolution Strategy with given random parameter.\n"
 		<< "\t" << CMD_IDs.MuCommaLambda << "\tExecutes solver with (mu,lambda) Evolution Strategy with given random parameter.\n"
-		<< "\t" << CMD_IDs.MuSlashRohCommaLambda << "\tExecutes solver with (mu/roh#lambda) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.MuSlashRohPlusLambda << "\tExecutes solver with (mu/roh+lambda) Evolution Strategy with given random parameter.\n"
+		<< "\t" << CMD_IDs.MuSlashRohCommaLambda << "\tExecutes solver with (mu/roh,lambda) Evolution Strategy with given random parameter.\n"
 
 		<< "\nGeneral Strategy Parameters:\n"
 		<< "\t" << CMD_IDs.IndividualRandomRange << " <MIN> <MAX>\tIndividual self-replication random range.\n"
@@ -147,7 +147,7 @@ void EquationSolver::showUsage(char* appExecutionPath) const
 		<< "\t" << CMD_IDs.Mu << " <NUM>\t\tDefines amount of parents. Needs to be a positive number!\n"
 		<< "\t" << CMD_IDs.Lambda << " <NUM>\t\tDefines amount of children. Needs to be a positive number!\n"
 
-		<< "\n" << CMD_IDs.MuSlashRohCommaLambda << " specific Parameter:\n"
+		<< "\n" << CMD_IDs.MuSlashRohPlusLambda << " & " << CMD_IDs.MuSlashRohCommaLambda << " specific Parameter:\n"
 		<< "\t" << CMD_IDs.Mu << ", " << CMD_IDs.Lambda << "\t==> same as above!\n"
 		<< "\t" << CMD_IDs.Roh << " <NUM>\tNumber of parent individuals.\n"
 		<< "\t" << CMD_IDs.Melting << "\tRecombination function 'Melting' -> average of parent genes.\n"
@@ -527,7 +527,7 @@ bool EquationSolver::checkConditionsAndReturnTrueIfSolutionFound(std::vector<Ind
 	return false;
 }
 
-void EquationSolver::plusSelection(std::vector<Individual>& inOutIndividuals, std::vector<Individual>& inOutParents, std::vector<int> inOutQualityOverIterations)
+void EquationSolver::plusSelection(std::vector<Individual>& inOutIndividuals, std::vector<Individual>& inOutParents, std::vector<int>& inOutQualityOverIterations)
 {			
 	//determine quality
 	for (int i = 0; i < inOutIndividuals.size(); ++i)
@@ -544,7 +544,7 @@ void EquationSolver::plusSelection(std::vector<Individual>& inOutIndividuals, st
 		inOutParents[i] = inOutIndividuals[i];
 }
 
-void EquationSolver::commaSelection(std::vector<Individual>& inOutParents, std::vector<Individual>& inOutChildren, const std::vector<Individual>& individuals, std::vector<int> inOutQualityOverIterations)
+void EquationSolver::commaSelection(std::vector<Individual>& inOutParents, std::vector<Individual>& inOutChildren, const std::vector<Individual>& individuals, std::vector<int>& inOutQualityOverIterations)
 {			
 	//determine quality
 	for (int i = 0; i < inOutChildren.size(); ++i)
