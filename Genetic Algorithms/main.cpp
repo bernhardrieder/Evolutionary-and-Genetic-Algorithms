@@ -1,5 +1,6 @@
 #include "NQueensPuzzle.h"
 #include <ctime>
+#include <iostream>
 
 int main(int argc, char** argv)
 {
