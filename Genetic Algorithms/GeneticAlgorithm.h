@@ -14,7 +14,9 @@ private:
 	{
 		std::vector<int> Genes; // queen positions in rows
 		int Fitness; //number of collisions
+		bool Best;
 
+		Individual& operator=(const Individual& other);
 		void ResetFitness();
 		void Reset();
 		void Initialize(const int& queensAmount, const std::uniform_int_distribution<>& randomChromosomeGeneDistribution, std::mt19937_64& mersenneTwisterEngine);
